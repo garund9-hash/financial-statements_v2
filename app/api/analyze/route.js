@@ -74,16 +74,18 @@ export async function POST(request) {
     const timeoutId = setTimeout(() => ac.abort(), 55_000);
     let aiCompletion;
     try {
-      aiCompletion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: analysisPrompt },
-        ],
-        max_tokens: 3000,
-        temperature: 0.7,
-        signal: ac.signal,
-      });
+      aiCompletion = await openai.chat.completions.create(
+        {
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: analysisPrompt },
+          ],
+          max_tokens: 3000,
+          temperature: 0.7,
+        },
+        { signal: ac.signal },  // SDK v6: request options go in the second argument
+      );
     } finally {
       clearTimeout(timeoutId);
     }

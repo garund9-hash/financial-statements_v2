@@ -23,6 +23,7 @@ export default function Home() {
   };
 
   const handleAiAnalyze = () => {
+    if (!company) return;
     analyze(company.corp_name, chartData, year);
   };
 
