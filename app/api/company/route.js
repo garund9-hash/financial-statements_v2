@@ -5,6 +5,14 @@ import { XMLParser } from 'fast-xml-parser';
 
 let cachedList = null;
 
+function hasStockCode(entry) {
+  return entry.stock_code && String(entry.stock_code).trim() !== '';
+}
+
+function formatStockCode(code) {
+  return String(code).trim().padStart(6, '0');
+}
+
 async function getCompanyList() {
   if (cachedList) return cachedList;
   const xmlPath = path.join(process.cwd(), 'corp.xml');
@@ -31,43 +39,48 @@ export async function GET(request) {
     if (type === 'suggest') {
       const lowerQuery = query.toLowerCase();
       const matches = [];
-      for (const c of list) {
-         if (String(c.corp_name).toLowerCase().startsWith(lowerQuery)) {
-            matches.push({ corp_name: c.corp_name, stock_code: c.stock_code ? String(c.stock_code).trim().padStart(6, '0') : '' });
+      for (const entry of list) {
+         if (String(entry.corp_name).toLowerCase().startsWith(lowerQuery)) {
+            matches.push({
+              corp_name: entry.corp_name,
+              stock_code: hasStockCode(entry) ? formatStockCode(entry.stock_code) : '',
+            });
          }
          if (matches.length >= 10) break;
       }
       return NextResponse.json({ suggestions: matches });
     }
-    
-    // First try to find exact match with a stock code
-    let company = list.find(c => c.corp_name === query && c.stock_code && String(c.stock_code).trim() !== '');
-    
+
+    // Company lookup priority:
+    // 1. Exact name match among LISTED companies (have a stock code) — most likely user intent
+    // 2. Exact name match among ALL companies (including unlisted)
+    // 3. Partial/substring name match among LISTED companies — fallback fuzzy match
+    let company = list.find(entry => entry.corp_name === query && hasStockCode(entry));
+
     if (!company) {
-       // Exact match regardless of stock code
-       company = list.find(c => c.corp_name === query);
+       company = list.find(entry => entry.corp_name === query);
     }
 
     if (!company) {
-       // Fuzzy match
-       company = list.find(c => String(c.corp_name).includes(query) && c.stock_code && String(c.stock_code).trim() !== '');
+       company = list.find(entry =>
+         String(entry.corp_name).includes(query) && hasStockCode(entry)
+       );
     }
 
     if (!company) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // clone to prevent mutating global cache
-    const companyCopy = { ...company };
+    const formattedCompany = { ...company };
 
-    if (companyCopy.corp_code) {
-      companyCopy.corp_code = String(companyCopy.corp_code).padStart(8, '0');
+    if (formattedCompany.corp_code) {
+      formattedCompany.corp_code = String(formattedCompany.corp_code).padStart(8, '0');
     }
-    if (companyCopy.stock_code && String(companyCopy.stock_code).trim() !== '') {
-      companyCopy.stock_code = String(companyCopy.stock_code).trim().padStart(6, '0');
+    if (hasStockCode(formattedCompany)) {
+      formattedCompany.stock_code = formatStockCode(formattedCompany.stock_code);
     }
 
-    return NextResponse.json(companyCopy);
+    return NextResponse.json(formattedCompany);
   } catch (error) {
     console.error('Error fetching company:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

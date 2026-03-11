@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/garund9/.antigravity/agents/**)",
+      "Bash(npm run:*)"
+    ]
+  }
+}
