@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Read(//home/garund9/.antigravity/agents/**)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(node -e \"const {XMLParser} = require\\(''''fast-xml-parser''''\\); const p = new XMLParser\\(\\); console.log\\(JSON.stringify\\(p.options || p, null, 2\\)\\)\")",
+      "Bash(node -e \"const {XMLParser} = require\\(''''fast-xml-parser''''\\); const p = new XMLParser\\(\\); const r = p.options || {}; console.log\\(''''processEntities:'''', typeof r.processEntities\\); const defaults = Object.keys\\(p\\);\" 2)",
+      "Bash(node -e \"const {XMLParser} = require\\(''''/home/garund9/projects/financial-statements_v2/node_modules/fast-xml-parser''''\\); const p = new XMLParser\\(\\); console.log\\(''''allowDtd default:'''', p.allowDtd, JSON.stringify\\(Object.getOwnPropertyNames\\(p\\)\\)\\)\")",
+      "Bash(node -e \":*)"
     ]
   }
 }

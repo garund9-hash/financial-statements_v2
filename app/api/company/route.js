@@ -3,7 +3,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import { XMLParser } from 'fast-xml-parser';
 
-let cachedList = null;
+// MED-3: Promise-based singleton prevents race conditions on concurrent cold starts.
+// Object.freeze prevents accidental mutation of the shared cache.
+let cachePromise = null;
 
 function hasStockCode(entry) {
   return entry.stock_code && String(entry.stock_code).trim() !== '';
@@ -14,13 +16,17 @@ function formatStockCode(code) {
 }
 
 async function getCompanyList() {
-  if (cachedList) return cachedList;
-  const xmlPath = path.join(process.cwd(), 'corp.xml');
-  const xmlData = await fs.readFile(xmlPath, 'utf-8');
-  const parser = new XMLParser();
-  const result = parser.parse(xmlData);
-  cachedList = result?.result?.list || [];
-  return cachedList;
+  if (!cachePromise) {
+    cachePromise = (async () => {
+      const xmlPath = path.join(process.cwd(), 'corp.xml');
+      const xmlData = await fs.readFile(xmlPath, 'utf-8');
+      const parser = new XMLParser();
+      const result = parser.parse(xmlData);
+      const list = result?.result?.list || [];
+      return Object.freeze(list);
+    })();
+  }
+  return cachePromise;
 }
 
 export async function GET(request) {
