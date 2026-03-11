@@ -32,9 +32,8 @@ function validateFinanceData(data) {
 }
 
 function buildAnalysisPrompt(companyName, financeData, year) {
-  const yearLabel = year ? `${year}년 ` : '';
   return `회사명: ${companyName}
-연도: ${yearLabel || '미지정'}
+연도: ${year ? `${year}년` : '미지정'}
 재무 데이터(JSON):
 ${JSON.stringify(financeData)}`;
 }
@@ -70,15 +69,24 @@ export async function POST(request) {
 
     // HIGH-3: Use system role to separate instructions from user-supplied data.
     // This makes prompt injection significantly harder.
-    const aiCompletion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: analysisPrompt },
-      ],
-      max_tokens: 3000,
-      temperature: 0.7,
-    });
+    // AbortController ensures we don't hang past the serverless function timeout limit.
+    const ac = new AbortController();
+    const timeoutId = setTimeout(() => ac.abort(), 55_000);
+    let aiCompletion;
+    try {
+      aiCompletion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: analysisPrompt },
+        ],
+        max_tokens: 3000,
+        temperature: 0.7,
+        signal: ac.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     return NextResponse.json({ analysis: aiCompletion.choices[0].message.content });
   } catch (error) {

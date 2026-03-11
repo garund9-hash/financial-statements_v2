@@ -26,13 +26,40 @@ export function findFinancialLineItemAmount(items, accountNames) {
   return Number(String(selectedItem.thstrm_amount).replace(/,/g, '')) || 0;
 }
 
+// Pre-built lookup: key string → metric index in METRIC_DEFINITIONS.
+// Allows extractMetrics to scan financialItems in a single pass instead of
+// one .filter() pass per metric definition.
+const KEY_TO_METRIC_INDEX = new Map(
+  METRIC_DEFINITIONS.flatMap((def, i) => def.keys.map(k => [k, i]))
+);
+
 /**
  * Extracts all configured metrics from a list of financial statement line items.
  * Driven by METRIC_DEFINITIONS — add entries there to extract new metrics automatically.
+ * Single O(n) pass over financialItems instead of O(M × n) with M separate filter calls.
  */
 export function extractMetrics(financialItems) {
-  return METRIC_DEFINITIONS.map(def => ({
-    name: def.name,
-    value: findFinancialLineItemAmount(financialItems, def.keys),
-  }));
+  const cfsMatches = new Array(METRIC_DEFINITIONS.length).fill(null);
+  const anyMatches = new Array(METRIC_DEFINITIONS.length).fill(null);
+
+  for (const item of financialItems) {
+    const id = item.account_id || '';
+    const nm = item.account_nm || '';
+    for (const [key, idx] of KEY_TO_METRIC_INDEX) {
+      if ((id && id.includes(key)) || (nm && nm.includes(key))) {
+        if (item.fs_div === CFS_DIVISION_CODE && !cfsMatches[idx]) cfsMatches[idx] = item;
+        if (!anyMatches[idx]) anyMatches[idx] = item;
+      }
+    }
+  }
+
+  return METRIC_DEFINITIONS.map((def, i) => {
+    const selected = cfsMatches[i] || anyMatches[i];
+    return {
+      name: def.name,
+      value: selected
+        ? (Number(String(selected.thstrm_amount).replace(/,/g, '')) || 0)
+        : 0,
+    };
+  });
 }

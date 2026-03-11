@@ -40,9 +40,9 @@ export default function SearchForm({
         />
         {showSuggestions && suggestions.length > 0 && (
           <ul className={styles.suggestionsList}>
-            {suggestions.map((suggestion, index) => (
+            {suggestions.map((suggestion) => (
               <li
-                key={index}
+                key={suggestion.corp_name}
                 className={styles.suggestionItem}
                 onClick={() => selectSuggestion(suggestion.corp_name)}
               >

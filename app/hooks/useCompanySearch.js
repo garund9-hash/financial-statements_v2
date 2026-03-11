@@ -55,9 +55,14 @@ export function useCompanySearch() {
     setTimeout(() => setShowSuggestions(false), SUGGESTION_CLOSE_DELAY_MS);
   }, []);
 
+  // Keep a ref to the latest suggestions so handleFocus is a stable reference
+  // and doesn't re-create (and re-render SearchForm) on every autocomplete update.
+  const suggestionsRef = useRef(suggestions);
+  useEffect(() => { suggestionsRef.current = suggestions; }, [suggestions]);
+
   const handleFocus = useCallback(() => {
-    if (suggestions.length > 0) setShowSuggestions(true);
-  }, [suggestions.length]);
+    if (suggestionsRef.current.length > 0) setShowSuggestions(true);
+  }, []);
 
   return {
     query,
